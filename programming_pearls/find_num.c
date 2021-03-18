@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <limits.h>
 
-#define SQUARE  65536
+#define SQUARE      65536
+#define MISSING     0
+#define DUPLICATE   1
 
 /* 
     ** Program to either find a missing number or a duplicate number in a sea of numbers (approximately 4 billion) efficiently.
@@ -14,12 +16,6 @@
 
 
 int
-find_missing(const char *file);
-
-int
-find_duplicate(const char *file);
-
-int
 find_num(const char *file, int duplicate);
 
 int
@@ -28,125 +24,15 @@ main(int argc, char *argv[])
     if (argc < 2) 
         printf("No file provided\n");
     else if(argc == 2)
-        printf("A missing number is: %d\n", find_missing(argv[1]));
+        printf("A missing number is: %d\n", find_num(argv[1], MISSING));
     else if (argc == 3 && argv[2][0] == '-')
-        printf("A duplicate number is %d\n", find_duplicate(argv[1]));
+        printf("A duplicate number is %d\n", find_num(argv[1], DUPLICATE));
     else
         printf("No file provided\n");
 
 }
 
-/* Uses a range concept to efficiently find a missing number in a file with ~4 billion 32 bit numbers. */
-int
-find_missing(const char *file)
-{
-    FILE *f;
-    int lower, r, ranges[SQUARE], upper, val;
-    /* INT_MIN = -2147483648 */
-    long offset = (long) INT_MIN * -1;
-
-    /* Initialize array counts to 0 */
-    for(int i = 0; i < SQUARE; i++)
-        ranges[i] = 0;
-    
-    /* Open and read the file */
-    f = fopen(file, "r");
-
-    if(f == NULL)
-        return -1;
-
-
-    /* Populate range buckets */
-    while((fscanf(f, "%d", &val)) != EOF)
-        ranges[(val + offset) >> 16] += 1;           // Divide by 2^16
-
-    fclose(f);
-
-    /* Find the range index that does not contain all the numbers. */
-    for (r = 0; r < SQUARE; r++)
-        if (ranges[r] < SQUARE)
-            break;
-
-    lower = (r << 16) + INT_MIN;
-    upper = ((r + 1) << 16) + INT_MIN;
-    
-    /* Open and read the file, again */
-    f = fopen(file, "r");
-
-    /* Re-initialize ranges */
-    for (int i = 0; i < SQUARE; i++)
-        ranges[i] = 0;
-
-    /* Populate number buckets */
-    while (fscanf(f, "%d", &val) != EOF)
-        if (val >= lower && val < upper)
-            ranges[val - lower] += 1;
-
-    /* Find the missing number */
-    for (r = 0; r < SQUARE; r++)
-        if (ranges[r] == 0)
-            return lower + r;
-
-    fclose(f);
-
-    return 42;
-}
-
-int
-find_duplicate(const char *file)
-{
-    FILE *f;
-    int lower, r, ranges[SQUARE], upper, val;
-    unsigned offset = 2147483648;
-
-    /* Initialize array counts to 0 */
-    for(int i = 0; i < SQUARE; i++)
-        ranges[i] = 0;
-    
-    /* Open and read the file */
-    f = fopen(file, "r");
-
-    if(f == NULL)
-        return -1;
-
-    /* Populate range buckets */
-    while((fscanf(f, "%d", &val)) != EOF)
-        ranges[(val + offset) >> 16] += 1;           // Divide by 2^16
-
-    fclose(f);
-
-    /* Find the range that contains too many numbers */
-    for (r = 0; r < SQUARE; r++)
-        if (ranges[r] > SQUARE)
-            break;
-
-    lower = (r << 16) + INT_MIN;
-    upper = ((r + 1) << 16) + INT_MIN;
-    
-    /* Open and read the file, again */
-    f = fopen(file, "r");
-
-    /* Re-initialize ranges */
-    for (int i = 0; i < SQUARE; i++)
-        ranges[i] = 0;
-
-    /* Populate number buckets */
-    while (fscanf(f, "%d", &val) != EOF)
-        if (val >= lower && val < upper)
-            ranges[val - lower] += 1;
-
-    /* Find the duplicate number */
-    for (r = 0; r < SQUARE; r++)
-        if (ranges[r] > 1)
-            return lower + r;
-
-    fclose(f);
-
-    return 42;
-
-}
-
-/* TODO: test this function */
+/* Uses a range concept to efficiently find a missing (or duplicate) number in a file with ~4 billion 32 bit numbers. */
 int
 find_num(const char *file, int duplicate)
 {
